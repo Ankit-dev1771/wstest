@@ -6,7 +6,7 @@ wss.on('connection', (ws) => {
     console.log("Player connected!");
 
     ws.on('message', (message) => {
-        if (message.to_string() === 'ping') {
+        if (message.toString() === 'ping') {
             ws.send('pong');
             console.log("Ping received, sent pong.");
         }
