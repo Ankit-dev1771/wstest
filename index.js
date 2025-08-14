@@ -1,13 +1,23 @@
 import WebSocket, { WebSocketServer } from 'ws';
 
-const wss = new WebSocketServer({ port: 8080 });
+// Start WebSocket server on port 8080
+const wss = new WebSocketServer({ port: 8080 }, () => {
+    console.log("WebSocket server running on ws://localhost:8080");
+});
 
 wss.on('connection', (ws) => {
-    console.log('Client connected');
+    console.log("Player connected");
 
     ws.on('message', (message) => {
-        if (message.toString() === 'ping') {
-            ws.send('pong');
+        const msg = message.toString();
+
+        if (msg === "ping") {
+            // Respond immediately to measure round-trip time
+            ws.send("pong");
         }
+    });
+
+    ws.on('close', () => {
+        console.log("Player disconnected");
     });
 });
