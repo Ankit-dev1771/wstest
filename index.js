@@ -21,14 +21,22 @@ wss.on('connection', (ws) => {
     console.log("Player ID: " + playerId);
     PlayerData[playerId] = {
         ws,
-        name: "", // Empty until get name message
+        name: "New Player", // Empty until get name message
         pos: {x: 0, y: 0}, // Initial poaition
         health: 200, // Initial health
         current_animation: "idle",
     }
 
     ws.send(playerId) // For first coonection, sends player id
-    update_player_count(PlayerData); // Notify all players about new player
+    add_player_count(PlayerData); // Notify all players about new player
+    messageFromServer({
+        type: 'MESSAGE_SERVER',
+        message: {
+            'type': 'JOIN',
+            'id': playerId,
+            'name': PlayerData[playerId].name,
+        }
+    })
 
     ws.on('message', (message) => {
         const data = JSON.parse(message.toString());
@@ -49,13 +57,26 @@ wss.on('connection', (ws) => {
                 current_animation: data.current_animation
             });
         }
+
+        if (data.type === 'CHAT_GLOBAL'){
+            messageFromPlayerToGlobal(data);
+        }
+
+        if (data.type === 'STATUS_PULL'){
+            const message = {
+                type: 'STATUS_UPDATE',
+                status: 'ONLINE',
+                player_count: playerCount
+            }
+            broadcast(message);
+        }
     })
 
     ws.on('close', () => {
         console.log("player disconnected!");
         playerCount--;
         delete PlayerData[playerId]; // Remove player data on disconnect
-        update_player_count(PlayerData); // Notify all players about player disconnection
+        remove_player_count(playerId); // Notify all players about player disconnection
     })
 
 
@@ -70,7 +91,7 @@ function broadcast(data) {
     }
 }
 
-function update_player_count(PlayerData) {
+function add_player_count(PlayerData) {
     const data = {
         type: 'ADD_PLAYER',
         player_ids : Object.keys(PlayerData), // List of all player IDs
@@ -81,4 +102,36 @@ function update_player_count(PlayerData) {
             player.ws.send(JSON.stringify(data));
         }
     }
+}
+function remove_player_count(PlayerID) {
+    const data = {  
+        type: 'REMOVE_PLAYER',
+        player_id : PlayerID, // List of all player IDs
+    }
+    for (const id in PlayerData) {
+        const player = PlayerData[id];
+        if (player && player.ws && player.ws.readyState == WebSocket.OPEN){
+            player.ws.send(JSON.stringify(data));
+        }
+    }
+}
+
+function messageFromServer(data) {
+    for (const id in PlayerData) {
+        const player = PlayerData[id];
+        if (player && player.ws && player.ws.readyState == WebSocket.OPEN){
+            player.ws.send(JSON.stringify(data));
+        }
+
+    }
+}
+
+function messageFromPlayerToGlobal(data){
+    const message = {
+        type: 'GLOBAL_CHAT',
+        name: data.name,
+        message: data.message,
+        id: data.id,
+    }
+    broadcast(message);
 }
